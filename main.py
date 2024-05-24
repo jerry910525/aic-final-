@@ -20,10 +20,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 n_gpu = torch.cuda.device_count()
 # print(torch.cuda.get_device_name(0))
 catagories = ["anger",	"anticipation",	"disgust",	"fear",	"joy",	"love",	"optimism"	,"pessimism"	,"sadness"	,"surprise"	,"trust"]
-batch_size = 512
+batch_size = 64
 learning_rate = 0.00005
-num_of_former = 0
-max_length = 30
+
+max_length = 10
 epochs = 30
 
 script_path = '.'
@@ -38,15 +38,15 @@ print("working directory:", current_directory)
 train_data = pd.read_csv('train.csv', sep='\t')
 test_data = pd.read_csv('test.csv', sep='\t')
 print(train_data.shape)
-val_data = pd.read_csv("valid.csv", sep='\t')
+val_data = pd.read_csv("dev.csv", sep='\t')
 train_data = pd.concat([train_data,val_data])
-train_data = pd.concat([train_data,test_data])
+#train_data = pd.concat([train_data,test_data])
 
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 
-train_data, test_data = train_test_split(train_data, test_size=0.2, random_state=42)
+#train_data, test_data = train_test_split(train_data, test_size=0.2, random_state=42)
 
-train_data, val_data = train_test_split(train_data, test_size=1/8, random_state=42)
+#train_data, val_data = train_test_split(train_data, test_size=1/8, random_state=42)
 
 train_data.head()
 test_data.head()
@@ -116,6 +116,13 @@ def cleanPunc(sentence): #function to clean the word of any punctuation or speci
     cleaned = cleaned.replace("\n"," ")
     return cleaned
 
+def remove_mentions(sentence):
+    # 定義匹配 @username 的正則表達式
+    pattern = r'@[\w.]+'
+    # 使用 sub 方法將匹配到的部分替換為空字串
+    cleaned_sentence = re.sub(pattern, '', sentence)
+    return cleaned_sentence
+
 
 def keepAlpha(sentence):
     alpha_sent = ""
@@ -125,17 +132,26 @@ def keepAlpha(sentence):
         alpha_sent += " "
     alpha_sent = alpha_sent.strip()
     return alpha_sent
-
+def cleanEmoji(sentence):
+    emoji_pattern = re.compile("["
+        u"\U0001F600-\U0001F64F"  # emoticons
+        u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+        u"\U0001F680-\U0001F6FF"  # transport & map symbols
+        u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                           "]+", flags=re.UNICODE)
+    return  emoji_pattern.sub(r'', sentence) # no emoji
 data = train_data
 data['Tweet'] = data['Tweet'].str.lower()
 data['Tweet'] = data['Tweet'].apply(cleanHtml)
 data['Tweet'] = data['Tweet'].apply(cleanPunc)
 data['Tweet'] = data['Tweet'].apply(keepAlpha)
-
+data['Tweet'] = data['Tweet'].apply(remove_mentions)
 test_data['Tweet'] = test_data['Tweet'].str.lower()
 test_data['Tweet'] = test_data['Tweet'].apply(cleanHtml)
 test_data['Tweet'] = test_data['Tweet'].apply(cleanPunc)
 test_data['Tweet'] = test_data['Tweet'].apply(keepAlpha)
+test_data['Tweet'] = test_data['Tweet'].apply(cleanEmoji)
+data['Tweet'] = data['Tweet'].apply(cleanEmoji)
 test_data.head()
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
@@ -283,10 +299,10 @@ one_freq_labels = [labels.pop(i) for i in one_freq_idxs]
 # Use train_test_split to split our data into train and validation sets
 
 train_inputs, validation_inputs, train_labels, validation_labels, train_token_types, validation_token_types, train_masks, validation_masks = train_test_split(input_ids, labels, token_type_ids,attention_masks,
-                                                            random_state=None, test_size=0.0001)
+                                                            random_state=None, test_size=0.8)
 
 train_inputs, test_input_ids, train_labels, test_labels, train_token_types, test_token_type_ids, train_masks, test_attention_masks = train_test_split(train_inputs, train_labels, train_token_types,train_masks,
-                                                            random_state=None, test_size=0.0001)
+                                                            random_state=None, test_size=0.125)
 print(len(train_inputs))
 print(len(test_input_ids))
 # Add one frequency data to train data
